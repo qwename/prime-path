@@ -14,7 +14,9 @@ int main(int argc, char *argv[])
     int max_x = 1;
     int max_y = 1;
     int n = start, x = (max_x - 1) / 2, y = (max_y - 1)/ 2;
-    // 0 = R; 1 = U; 2 = L; 3 = D
+	// { x, y }
+	int translate[2] = { 1, 0 };
+    // { 1, 0 = R; 1 = U; 2 = L; 3 = D
     int direction = 0;
 
     /* Initialize array */
@@ -61,6 +63,9 @@ int main(int argc, char *argv[])
         }
         //assert(x-1 >= 0 && x < max_x);
         //assert(y-1 >= 0 && y < max_y);
+        int loop = 2;
+		while (loop > 0)
+		{
         switch (direction)
         {
         case 0:
@@ -146,6 +151,7 @@ int main(int argc, char *argv[])
         }
         ++n;
     }
+	}
 
     int temp = n, pad = 0;
     while (temp)
