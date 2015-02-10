@@ -7,17 +7,45 @@ int isPrime(int n);
 void deleteArray(int **a, int n);
 int writeArrayToFile(const int **a, const char *name, int pad, int x, int y);
 
+struct Coord {
+    int x, y;
+};
+
 int main(int argc, char *argv[])
 {
-    const int start = 1;
-    const int end = 100;
+    int start = 1;
+    int end = 100;
+    if (argc > 1)
+    {
+        if (2 == argc)
+        {
+            start = atoi(argv[1]);
+        }
+        else if (3 == argc)
+        {
+            start = atoi(argv[1]);
+            end = atoi(argv[2]);
+        }
+        else
+        {
+            printf("Too many arguments!\n");
+            return 0;
+        }
+        if (end < start)
+        {
+            end = start;
+        }
+    }
     int max_x = 1;
     int max_y = 1;
     int n = start, x = (max_x - 1) / 2, y = (max_y - 1)/ 2;
-	// { x, y }
-	int translate[2] = { 1, 0 };
-    // { 1, 0 = R; 1 = U; 2 = L; 3 = D
-    int direction = 0;
+    // R, UR, U, UL, L, DL, D, DR
+    const int rotateTotal = 8;
+    const struct Coord directions[] = {
+                    { 1, 0 }, { 1, 1 }, { 0, 1 }, { -1, 1 },
+                    { -1, 0 }, { -1, -1 }, { 0, -1 }, { 1, -1 } };
+    int current = 0;
+    struct Coord translate = directions[current];
 
     /* Initialize array */
     int **p = (int **)calloc(max_x, sizeof(int *));
@@ -49,26 +77,20 @@ int main(int argc, char *argv[])
                 }
             }
         }
+        p[x][y] = n;
         if (isPrime(n))
         {
-       		p[x][y] = n;
-            ++direction;
+            ++current;
+            if (rotateTotal == current)
+            {
+                current = 0;
+            }
+            translate = directions[current];
         }
-		else
-		{
-		}
-        if (direction > 3)
+
+        switch (translate.x)
         {
-            direction = 0;
-        }
-        //assert(x-1 >= 0 && x < max_x);
-        //assert(y-1 >= 0 && y < max_y);
-        int loop = 2;
-		while (loop > 0)
-		{
-        switch (direction)
-        {
-        case 0:
+        case 1:
             {
                 ++x;
                 if (x >= max_x)
@@ -84,6 +106,32 @@ int main(int argc, char *argv[])
                 }
                 break;
             }
+        case -1:
+            {
+                --x;
+                if (x < 0)
+                {
+                    int **temp = (int **)calloc(max_x * 2, sizeof(int *));
+                    assert(temp);
+                    for (i = 0; i < max_x * 2; ++i)
+                    {
+                        temp[i] = (int *)calloc(max_y, sizeof(int));
+                        assert(temp[i]);
+                    }
+                    for (i = 0; i < max_x; ++i)
+                    {
+                        memcpy(temp[i + max_x], p[i], sizeof(int)*max_y);
+                    }
+                    deleteArray(p, max_x);
+                    p = temp;
+                    x = max_x - 1;
+                    max_x *= 2;
+                }
+                break;
+            }
+        }
+        switch (translate.y)
+        {
         case 1:
             {
                 --y;
@@ -108,30 +156,7 @@ int main(int argc, char *argv[])
                 }
                 break;
             }
-        case 2:
-            {
-                --x;
-                if (x < 0)
-                {
-                    int **temp = (int **)calloc(max_x * 2, sizeof(int *));
-                    assert(temp);
-                    for (i = 0; i < max_x * 2; ++i)
-                    {
-                        temp[i] = (int *)calloc(max_y, sizeof(int));
-                        assert(temp[i]);
-                    }
-                    for (i = 0; i < max_x; ++i)
-                    {
-                        memcpy(temp[i + max_x], p[i], sizeof(int)*max_y);
-                    }
-                    deleteArray(p, max_x);
-                    p = temp;
-                    x = max_x - 1;
-                    max_x *= 2;
-                }
-                break;
-            }
-        case 3:
+        case -1:
             {
                 ++y;
                 if (y >= max_y)
@@ -151,7 +176,6 @@ int main(int argc, char *argv[])
         }
         ++n;
     }
-	}
 
     int temp = n, pad = 0;
     while (temp)
