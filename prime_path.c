@@ -277,7 +277,7 @@ void deleteArray(int **a, int n)
 
 int isPrime(int n)
 {
-    assert(n >= 0);
+    assert(n > 1);
     if (n < 2) return 0;
     if (n == 2) return 1;
     if (n % 2 == 0) return 0;
