@@ -44,10 +44,8 @@ void FreeScreen(SDL_Surface *screen)
     }
 }
 
-void printPoint(SDL_Surface *screen, int x, int y)
+void printPoint(SDL_Surface *screen, int x, int y, Uint32 colour)
 {
-    // yellow
-    Uint32 colour = SDL_MapRGB(screen->format, 0xFF, 0xFF, 0x00);
     putpixel(screen, x, y, colour);
 }
 
