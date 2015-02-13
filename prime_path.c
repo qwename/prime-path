@@ -124,67 +124,32 @@ int main(int argc, char *argv[])
             translate = directions[current];
         }
 
-        switch (translate.x)
+        x += translate.x;
+        s_x += translate.x;
+        if (x < 0 || x >= max_x)
         {
-        case 1:
+            int right = (1 == translate.x);
+            p = (int **)expandArray(p, max_x, sizeof(int *), right);
+            for (i = 0; i < max_x; ++i)
             {
-                ++x; ++s_x;
-                if (x >= max_x)
-                {
-                    p = (int **)expandArray(p, max_x, sizeof(int *), 1);
-                    max_x *= 2;
-                    for (i = max_x / 2; i < max_x; ++i)
-                    {
-                        p[i] = (int *)initArray(max_y, sizeof(int));
-                    }
-                }
-                break;
+                p[i + max_x*right] = (int *)initArray(max_y, sizeof(int));
             }
-        case -1:
-            {
-                --x; --s_x;
-                if (x < 0)
-                {
-                    p = (int **)expandArray(p, max_x, sizeof(int *), 0);
-                    for (i = 0; i < max_x; ++i)
-                    {
-                        p[i] = (int *)initArray(max_y, sizeof(int));
-                    }
-                    x = max_x - 1;
-                    max_x *= 2;
-                }
-                break;
-            }
+            x = (max_x - 1) + right;
+            max_x *= 2;
         }
-        switch (translate.y)
+
+        // Minus since y coordinates grow downwards
+        y -= translate.y;
+        s_y -= translate.y;
+        if (y < 0 || y >= max_y)
         {
-        case 1:
+            int down = (-1 == translate.y);
+            for (i = 0; i < max_x; ++i)
             {
-                --y; --s_y;
-                if (y < 0)
-                {
-                    for (i = 0; i < max_x; ++i)
-                    {
-                        p[i] = (int *)expandArray(p[i], max_y, sizeof(int), 0);
-                    }
-                    y = max_y - 1;
-                    max_y *= 2;
-                }
-                break;
+                p[i] = (int *)expandArray(p[i], max_y, sizeof(int), down);
             }
-        case -1:
-            {
-                ++y; ++s_y;
-                if (y >= max_y)
-                {
-                    for (i = 0; i < max_x; ++i)
-                    {
-                        p[i] = (int *)expandArray(p[i], max_y, sizeof(int), 1);
-                    }
-                    max_y *= 2;
-                }
-                break;
-            }
+            y = (max_y - 1) + down;
+            max_y *= 2;
         }
         ++n;
     }
