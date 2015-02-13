@@ -4,6 +4,12 @@
 #include <assert.h>
 #include "print.h"
 
+struct Coord {
+    int x, y;
+};
+
+int* getTurns(int start, int end, int *pCount, int *s_w, int *s_h, int *s_x, int *s_y);
+void getBoundaries(const int **a, int x, int y, struct Coord *topLeft, struct Coord *bottomRight);
 int numDigits(int x);
 char* intToStr(int x);
 char* catStrs(const char *a, const char *b, const char *c);
@@ -11,7 +17,7 @@ char* catStrs(const char *a, const char *b, const char *c);
 // returns number of prime numbers read, output array size to "size"
 int readPrimes(int ** const p, int *size, const char *name);
 void writePrimes(const int *p, int n, const char *name);
-int generatePrimes(int *p, int *size, int bound);
+int* generatePrimes(int *num, int *size, int bound);
 int isPrime(int x);
 void* initArray(size_t num, size_t size);
 // Expand array by a factor of 2
@@ -22,21 +28,19 @@ int writeArrayToFile(const int **a, const char *name, int pad, int x, int y);
 static int primeCount = 0, primeSize = 0;
 static int *primes = NULL;
 
-struct Coord {
-    int x, y;
-};
-
 int main(int argc, char *argv[])
 {
     int start = 1, end = 100;
+    const char *title = "Prime Path";
     // 4:3, 640x360 for 16:9
     int s_w = 640, s_h = 480;
+    int s_x = s_w / 2, s_y = s_h / 2;
     switch (argc)
     {
     case 7:
     case 6:
         {
-            primeCount = readPrimes(&primes, &primeSize, argv[3]);
+            primeCount = readPrimes(&primes, &primeSize, argv[5]);
         }
     case 5:
         {
@@ -83,10 +87,22 @@ int main(int argc, char *argv[])
         s_w = s_h / 3 * 4;
     }
 
+    int w, h;
+    int pCount = 0, turn = 0;
+    printf("Getting turns...");
+    int *turns = getTurns(start, end, &pCount, &w, &h, &s_x, &s_y);
+    printf("done!\n");
+    if (w > s_w)
+    {
+        s_w = w;
+    }
+    if (h > s_h)
+    {
+        s_h = h;
+    }
+
     Uint32 yellow, white;
     SDL_Surface *s = NULL, *sP = NULL;
-    const char *title = "Prime Path";
-    int s_x = s_w / 2, s_y = s_h / 2;
     if (InitSDL())
     {
         s = InitScreen(s_w, s_h, title);
@@ -94,11 +110,10 @@ int main(int argc, char *argv[])
         white = SDL_MapRGB(s->format, 0xFF, 0xFF, 0xFF);
     }
 
-    int i;
-    int pCount = 0;
     int max_x = 1;
     int max_y = 1;
-    int n = start, x = (max_x - 1) / 2, y = (max_y - 1)/ 2;
+    int x = (max_x - 1) / 2, y = (max_y - 1)/ 2;
+    struct Coord origin = { x, y };
     // R, UR, U, UL, L, DL, D, DR
     const int rotateTotal = 8;
     const struct Coord directions[] = {
@@ -109,6 +124,7 @@ int main(int argc, char *argv[])
 
     /* Initialize array */
     int **p = (int **)initArray(max_x, sizeof(int *));
+    int i;
     for (i = 0; i < max_x; ++i)
     {
         p[i] = (int *)initArray(max_y, sizeof(int));
@@ -118,6 +134,7 @@ int main(int argc, char *argv[])
     int ow_size = 2, ow_index = 0;
     int *overwritten = (int *)initArray(ow_size, sizeof(int));
 
+    int n = start;
     while (n <= end)
     {
         if (0 != p[x][y])
@@ -142,9 +159,9 @@ int main(int argc, char *argv[])
                 printPoint(s, s_x, s_y, white);
             }
         }
-        if (isPrime(n))
+        if (n == turns[turn])
         {
-            ++pCount;
+            ++turn;
             ++current;
             if (rotateTotal == current)
             {
@@ -163,7 +180,8 @@ int main(int argc, char *argv[])
             {
                 p[i + max_x*right] = (int *)initArray(max_y, sizeof(int));
             }
-            x = (max_x - 1) + right;
+            x = max_x - !right;
+            origin.x = origin.x + (!right)*max_x;
             max_x *= 2;
         }
 
@@ -177,12 +195,17 @@ int main(int argc, char *argv[])
             {
                 p[i] = (int *)expandArray(p[i], max_y, sizeof(int), down);
             }
-            y = (max_y - 1) + down;
+            y = max_y - !down;
+            origin.y = origin.y + (!down)*max_y;
             max_y *= 2;
         }
         ++n;
     }
-    printf("Finished creating path!\n");
+
+    struct Coord tl, br;
+    getBoundaries((const int **)p, max_x, max_y, &tl, &br);
+    printf("Filled array, columns: %d rows: %d\n", br.x - tl.x + 1, br.y - tl.y + 1);
+    printf("Origin: (%d, %d)\n", origin.x - tl.x, origin.y - tl.y);
 
 /*
     int temp = n, pad = 0;
@@ -236,9 +259,124 @@ int main(int argc, char *argv[])
     return 0;
 }
 
+int* getTurns(int start, int end, int *pCount, int *s_w, int *s_h, int *s_x, int *s_y)
+{
+    int max_x = 1;
+    int max_y = 1;
+    int x = (max_x - 1) / 2, y = (max_y - 1)/ 2;
+    struct Coord origin = { x, y };
+    // R, UR, U, UL, L, DL, D, DR
+    const int rotateTotal = 8;
+    const struct Coord directions[] = {
+                    { 1, 0 }, { 1, 1 }, { 0, 1 }, { -1, 1 },
+                    { -1, 0 }, { -1, -1 }, { 0, -1 }, { 1, -1 } };
+    int current = 0;
+    struct Coord translate = directions[current];
+
+    /* Initialize array */
+    int **p = (int **)initArray(max_x, sizeof(int *));
+    int i;
+    for (i = 0; i < max_x; ++i)
+    {
+        p[i] = (int *)initArray(max_y, sizeof(int));
+    }
+
+    int n = start;
+    while (n <= end)
+    {
+        p[x][y] = n;
+        if (isPrime(n))
+        {
+            ++*pCount;
+            ++current;
+            if (rotateTotal == current)
+            {
+                current = 0;
+            }
+            translate = directions[current];
+        }
+
+        x += translate.x;
+        if (x < 0 || x >= max_x)
+        {
+            int right = (1 == translate.x);
+            p = (int **)expandArray(p, max_x, sizeof(int *), right);
+            for (i = 0; i < max_x; ++i)
+            {
+                p[i + max_x*right] = (int *)initArray(max_y, sizeof(int));
+            }
+            x = max_x - !right;
+            origin.x = origin.x + (!right)*max_x;
+            max_x *= 2;
+        }
+
+        // Minus since y coordinates grow downwards
+        y -= translate.y;
+        if (y < 0 || y >= max_y)
+        {
+            int down = (-1 == translate.y);
+            for (i = 0; i < max_x; ++i)
+            {
+                p[i] = (int *)expandArray(p[i], max_y, sizeof(int), down);
+            }
+            y = max_y - !down;
+            origin.y = origin.y + (!down)*max_y;
+            max_y *= 2;
+        }
+        ++n;
+    }
+
+    struct Coord tl, br;
+    getBoundaries((const int **)p, max_x, max_y, &tl, &br);
+    *s_w = br.x - tl.x + 1;
+    *s_h = br.y - tl.y + 1;
+    *s_x = origin.x - tl.x;
+    *s_y = origin.y - tl.y;
+
+    deleteArray(p, max_x);
+    return generatePrimes(pCount, NULL, end);
+}
+
+void getBoundaries(const int **a, int x, int y, struct Coord *topLeft, struct Coord *bottomRight)
+{
+    assert(a && x >= 1 && y >= 1);
+    int i, j, first_x = x, first_y = y, last_y = 0, last_x = 0;
+    i = j = 0;
+    while (j < y)
+    {
+        while (i < x)
+        {
+            if (0 != a[i][j])
+            {
+                if (j < first_y)
+                {
+                    first_y = j;
+                }
+                if (i < first_x)
+                {
+                    first_x = i;
+                }
+                if (j > last_y)
+                {
+                    last_y = j;
+                }
+                if (i > last_x)
+                {
+                    last_x = i;
+                }
+            }
+            ++i;
+        }
+        i = 0;
+        ++j;
+    }
+    topLeft->x = first_x; topLeft->y = first_y;
+    bottomRight->x = last_x; bottomRight->y = last_y;
+}
+
 int writeArrayToFile(const int **a, const char *name, int pad, int x, int y)
 {
-    assert(x >= 1 && y >= 1);
+    assert(a && x >= 1 && y >= 1);
     FILE *file = fopen(name, "w");
     if (!file)
     {
@@ -395,9 +533,9 @@ void writePrimes(const int *p, int n, const char *name)
     fclose(f);
 }
 
-int generatePrimes(int *p, int *size, int bound)
+int* generatePrimes(int *num, int *size, int bound)
 {
-    assert(NULL == p && bound > 1);
+    assert(num && bound > 1);
     if (!primes)
     {
         primeSize = 1;
@@ -405,10 +543,14 @@ int generatePrimes(int *p, int *size, int bound)
         primes[primeCount++] = 2;
     }
 
-    p = (int *)initArray(primeSize, sizeof(int));
+    int *p = (int *)initArray(primeSize, sizeof(int));
     memcpy(p, primes, sizeof(int)*primeCount);
-    *size = primeSize;
-    return primeCount;
+    if (size)
+    {
+        *size = primeSize;
+    }
+    *num = primeCount;
+    return p;
 }
 
 int isPrime(int x)

@@ -19,7 +19,7 @@ SDL_Surface* InitScreen(int width, int height, const char *title)
     SDL_Surface *screen;
     // bits per pixel, 0 for current bpp
     int bpp = 8;
-    Uint32 flags = SDL_SWSURFACE | SDL_ANYFORMAT;
+    Uint32 flags = SDL_SWSURFACE | SDL_RESIZABLE | SDL_ANYFORMAT;
 
     screen = SDL_SetVideoMode(width, height, bpp, flags);
     if (NULL == screen)
