@@ -13,7 +13,7 @@ int InitSDL(void)
     return 1;
 }
 
-SDL_Surface* InitScreen(int width, int height)
+SDL_Surface* InitScreen(int width, int height, const char *title)
 {
 
     SDL_Surface *screen;
@@ -30,6 +30,8 @@ SDL_Surface* InitScreen(int width, int height)
 
     printf("Set %dx%d at %d bits-per-pixel mode\n",
             screen->w, screen->h, screen->format->BitsPerPixel);
+
+    SDL_WM_SetCaption(title, title);
 
     return screen;
 }

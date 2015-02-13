@@ -6,10 +6,15 @@
 
 int numDigits(int x);
 char* intToStr(int x);
-int readPrimes(int ** const primes, int *size, const char *name);
-void writePrimes(const int *primes, int n, const char *name);
-int generatePrimes(int *primes, int *size, int bound);
+// read primes from file "name" into array "p"
+// returns number of prime numbers read, output array size to "size"
+int readPrimes(int ** const p, int *size, const char *name);
+void writePrimes(const int *p, int n, const char *name);
+int generatePrimes(int *p, int *size, int bound);
 int isPrime(int x);
+void* initArray(size_t num, size_t size);
+// Expand array by a factor of 2
+void* expandArray(void *a, size_t num, size_t size, int right);
 void deleteArray(int **a, int n);
 int writeArrayToFile(const int **a, const char *name, int pad, int x, int y);
 
@@ -22,7 +27,7 @@ struct Coord {
 
 int main(int argc, char *argv[])
 {
-    int start = 2;
+    int start = 1;
     int end = 100;
     switch (argc)
     {
@@ -50,9 +55,9 @@ int main(int argc, char *argv[])
             return 0;
         }
     }
-    if (start < 2)
+    if (start < 1)
     {
-        start = 2;
+        start = 1;
     }
     if (end < start)
     {
@@ -72,25 +77,24 @@ int main(int argc, char *argv[])
     struct Coord translate = directions[current];
 
     /* Initialize array */
-    int **p = (int **)calloc(max_x, sizeof(int *));
-    assert(p);
+    int **p = (int **)initArray(max_x, sizeof(int *));
     int ow_size = 2, ow_index = 0;
-    int *overwritten = (int *)calloc(ow_size, sizeof(int));
+    int *overwritten = (int *)initArray(ow_size, sizeof(int));
 
-    int i, j;
+    int i;
     for (i = 0; i < max_x; ++i)
     {
-        p[i] = (int *)calloc(max_y, sizeof(int));
-        assert(p[i]);
+        p[i] = (int *)initArray(max_y, sizeof(int));
     }
 
-    SDL_Surface *s = NULL;
-    int s_w = 640, s_h = 480;
-    s_w *= 5; s_h *= 5;
+    SDL_Surface *s = NULL, *sP = NULL;
+    const char *title = "Prime Path";
+    int s_w = 160, s_h = 120, scale = 4;
+    s_w *= scale; s_h *= scale;
     int s_x = s_w / 2, s_y = s_h / 2;
     if (InitSDL())
     {
-        s = InitScreen(s_w, s_h);
+        s = InitScreen(s_w, s_h, title);
     }
     while (n <= end)
     {
@@ -100,12 +104,8 @@ int main(int argc, char *argv[])
             overwritten[ow_index++] = n;
             if (ow_index >= ow_size)
             {
+                overwritten = (int *)expandArray(overwritten, ow_size, sizeof(int), 1);
                 ow_size *= 2;
-                overwritten = (int *)realloc(overwritten, sizeof(int)*ow_size);
-                for (i = ow_size / 2; i < ow_size; ++i)
-                {
-                    overwritten[i] = 0;
-                }
             }
         }
         p[x][y] = n;
@@ -131,13 +131,11 @@ int main(int argc, char *argv[])
                 ++x; ++s_x;
                 if (x >= max_x)
                 {
+                    p = (int **)expandArray(p, max_x, sizeof(int *), 1);
                     max_x *= 2;
-                    p = (int **)realloc(p, sizeof(int *)*max_x);
-                    assert(p);
-                    for (i = x; i < max_x; ++i)
+                    for (i = max_x / 2; i < max_x; ++i)
                     {
-                        p[i] = (int *)calloc(max_y, sizeof(int));
-                        assert(p[i]);
+                        p[i] = (int *)initArray(max_y, sizeof(int));
                     }
                 }
                 break;
@@ -147,19 +145,11 @@ int main(int argc, char *argv[])
                 --x; --s_x;
                 if (x < 0)
                 {
-                    int **temp = (int **)calloc(max_x * 2, sizeof(int *));
-                    assert(temp);
-                    for (i = 0; i < max_x * 2; ++i)
-                    {
-                        temp[i] = (int *)calloc(max_y, sizeof(int));
-                        assert(temp[i]);
-                    }
+                    p = (int **)expandArray(p, max_x, sizeof(int *), 0);
                     for (i = 0; i < max_x; ++i)
                     {
-                        memcpy(temp[i + max_x], p[i], sizeof(int)*max_y);
+                        p[i] = (int *)initArray(max_y, sizeof(int));
                     }
-                    deleteArray(p, max_x);
-                    p = temp;
                     x = max_x - 1;
                     max_x *= 2;
                 }
@@ -173,20 +163,10 @@ int main(int argc, char *argv[])
                 --y; --s_y;
                 if (y < 0)
                 {
-                    int **temp = (int **)calloc(max_x, sizeof(int *));
-                    assert(temp);
                     for (i = 0; i < max_x; ++i)
                     {
-                        temp[i] = (int *)calloc(max_y * 2, sizeof(int));
-                        assert(temp[i]);
-                        for (j = 0; j < max_y; ++j)
-                        {
-                            temp[i][j] = 0;
-                        }
-                        memcpy((int *)&temp[i][max_y], p[i], sizeof(int)*max_y);
+                        p[i] = (int *)expandArray(p[i], max_y, sizeof(int), 0);
                     }
-                    deleteArray(p, max_x);
-                    p = temp;
                     y = max_y - 1;
                     max_y *= 2;
                 }
@@ -197,15 +177,11 @@ int main(int argc, char *argv[])
                 ++y; ++s_y;
                 if (y >= max_y)
                 {
-                    max_y *= 2;
                     for (i = 0; i < max_x; ++i)
                     {
-                        p[i] = (int *)realloc(p[i], sizeof(int)*max_y);
-                        for (j = y; j < max_y; ++j)
-                        {
-                            p[i][j] = 0;
-                        }
+                        p[i] = (int *)expandArray(p[i], max_y, sizeof(int), 1);
                     }
+                    max_y *= 2;
                 }
                 break;
             }
@@ -248,6 +224,7 @@ int main(int argc, char *argv[])
         printf("Saved screen to %s\n", bmpName);
     }
     delay(1000);
+    FreeScreen(s);
     QuitSDL();
     printf("Quit SDL\n");
 
@@ -268,8 +245,7 @@ int writeArrayToFile(const int **a, const char *name, int pad, int x, int y)
         return 0;
     }
     int i, j, first_x = x, first_y = y, last_y = 0;
-    int *last_x = (int *)calloc(y, sizeof(int));
-    assert(last_x);
+    int *last_x = (int *)initArray(y, sizeof(int));
     i = j = 0;
     while (j < y)
     {
@@ -324,6 +300,35 @@ int writeArrayToFile(const int **a, const char *name, int pad, int x, int y)
     return 1;
 }
 
+void* initArray(size_t num, size_t size)
+{
+    void *a = calloc(num, size);
+    assert(a);
+    return a;
+}
+
+void* expandArray(void *a, size_t num, size_t size, int right)
+{
+    assert(a && num > 0);
+    a = realloc(a, size*2*num);
+    assert(a);
+    size_t i, half = size * num;
+    void *b = a + half;
+    for (i = 0; i < half; ++i)
+    {
+        if (right)
+        {
+            ((char *)b)[i] = 0;
+        }
+        else
+        {
+            ((char *)b)[i] = ((char *)a)[i];
+            ((char *)a)[i] = 0;
+        }
+    }
+    return a;
+}
+
 void deleteArray(int **a, int n)
 {
     assert(a && n >= 1);
@@ -334,8 +339,6 @@ void deleteArray(int **a, int n)
     free(a);
 }
 
-// read primes from file "name" into array "p"
-// returns number of prime numbers read, output array size to "size"
 int readPrimes(int ** const p, int *size, const char *name)
 {
     assert(NULL == *p);
@@ -348,7 +351,7 @@ int readPrimes(int ** const p, int *size, const char *name)
     }
 
     int c, x = 0, pCount = 0, pSize = 1;
-    *p = (int *)calloc(pSize, sizeof(int));
+    *p = (int *)initArray(pSize, sizeof(int));
     while ((c = fgetc(f)) != EOF)
     {
         if ('0' <= (char)c && (char)c <= '9')
@@ -398,24 +401,22 @@ int generatePrimes(int *p, int *size, int bound)
     if (!primes)
     {
         primeSize = 1;
-        primes = (int *)calloc(primeSize, sizeof(int));
+        primes = (int *)initArray(primeSize, sizeof(int));
         primes[primeCount++] = 2;
     }
 
-    p = (int *)calloc(primeSize, sizeof(int));
+    p = (int *)initArray(primeSize, sizeof(int));
     memcpy(p, primes, sizeof(int)*primeCount);
     *size = primeSize;
     return primeCount;
 }
 
-
-// "p" is a sequence of "n" primes, all less than "x"
 int isPrime(int x)
 {
     if (!primes)
     {
         primeSize = 1;
-        primes = (int *)calloc(primeSize, sizeof(int));
+        primes = (int *)initArray(primeSize, sizeof(int));
         primes[primeCount++] = 2;
     }
     if (x <= 1) return 0;
@@ -437,8 +438,8 @@ int isPrime(int x)
     {
         if (primeCount == primeSize)
         {
+            primes = (int *)expandArray(primes, primeSize, sizeof(int), 1);
             primeSize *= 2;
-            primes = (int *)realloc(primes, sizeof(int)*primeSize);
         }
         primes[primeCount++] = x;
     }
