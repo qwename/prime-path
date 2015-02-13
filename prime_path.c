@@ -5,6 +5,7 @@
 #include "print.h"
 
 int numDigits(int x);
+char* intToStr(int x);
 int readPrimes(int ** const primes, int *size, const char *name);
 void writePrimes(const int *primes, int n, const char *name);
 int generatePrimes(int *primes, int *size, int bound);
@@ -84,7 +85,8 @@ int main(int argc, char *argv[])
     }
 
     SDL_Surface *s = NULL;
-    int s_w = 2560, s_h = 1920;
+    int s_w = 640, s_h = 480;
+    s_w *= 5; s_h *= 5;
     int s_x = s_w / 2, s_y = s_h / 2;
     if (InitSDL())
     {
@@ -234,18 +236,13 @@ int main(int argc, char *argv[])
     deleteArray(p, max_x);
 
     const char *fileExt = ".bmp";
-    char startS[numDigits(start)+1];
-    sprintf(startS, "%d", start);
-    char endS[numDigits(end)+1];
-    sprintf(endS, "%d", end);
-    int bmpNameLen = strlen(startS) + strlen(endS) + 
-                    strlen(fileExt) + 2;
-    char bmpName[bmpNameLen];
-    strcpy(bmpName, startS);
-    strcpy(bmpName + strlen(startS), "-");
-    strcpy(bmpName + strlen(startS) + 1, endS);
-    strcpy(bmpName + strlen(startS) + 1 + strlen(endS), fileExt);
-    bmpName[bmpNameLen - 1] = '\0';
+    char *widthS = intToStr(s_w), *heightS = intToStr(s_h);
+    char *startS = intToStr(start), *endS = intToStr(end);
+    int bmpNameLen = strlen(widthS) + 1 + strlen(heightS) + 1 +
+                strlen(startS) + 1 + strlen(endS) + strlen(fileExt);
+    char bmpName[bmpNameLen+1];
+    strcpy(strcpy(strcpy(strcpy(strcpy(strcpy(strcpy(strcpy(bmpName, widthS) + strlen(widthS),"x") + 1, heightS) + strlen(heightS), "_") + 1, startS) + strlen(startS), "-") + 1, endS) + strlen(endS), fileExt);
+    bmpName[bmpNameLen] = '\0';
     if (0 == SDL_SaveBMP(s, bmpName))
     {
         printf("Saved screen to %s\n", bmpName);
@@ -446,6 +443,13 @@ int isPrime(int x)
         primes[primeCount++] = x;
     }
     return 1;
+}
+
+char* intToStr(int x)
+{
+    char *str = (char *)malloc(sizeof(char)*(numDigits(x)+1));
+    sprintf(str, "%d", x);
+    return str;
 }
 
 int numDigits(int x)
