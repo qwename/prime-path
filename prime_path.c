@@ -6,6 +6,7 @@
 
 int numDigits(int x);
 char* intToStr(int x);
+char* catStrs(const char *a, const char *b, const char *c);
 // read primes from file "name" into array "p"
 // returns number of prime numbers read, output array size to "size"
 int readPrimes(int ** const p, int *size, const char *name);
@@ -27,27 +28,37 @@ struct Coord {
 
 int main(int argc, char *argv[])
 {
-    int start = 1;
-    int end = 100;
+    int start = 1, end = 100;
+    // 4:3, 640x360 for 16:9
+    int s_w = 640, s_h = 480;
     switch (argc)
     {
-    case 5:
-    case 4:
+    case 7:
+    case 6:
         {
             primeCount = readPrimes(&primes, &primeSize, argv[3]);
         }
+    case 5:
+        {
+            end = atoi(argv[4]);
+        }
+    case 4:
+        {
+            start = atoi(argv[3]);
+        }
     case 3:
         {
-            end = atoi(argv[2]);
-        }
-    case 2:
-        {
-            start = atoi(argv[1]);
-            break;
+            s_w = atoi(argv[1]);
+            s_h = atoi(argv[2]);
         }
     case 1:
         {
             break;
+        }
+    case 2:
+        {
+            fprintf(stderr, "Not enough arguments!\n");
+            return 0;
         }
     default:
         {
@@ -63,7 +74,27 @@ int main(int argc, char *argv[])
     {
         end = start;
     }
+    if (s_h < 1)
+    {
+        s_h = 60;
+    }
+    if (s_w < 1)
+    {
+        s_w = s_h / 3 * 4;
+    }
 
+    Uint32 yellow, white;
+    SDL_Surface *s = NULL, *sP = NULL;
+    const char *title = "Prime Path";
+    int s_x = s_w / 2, s_y = s_h / 2;
+    if (InitSDL())
+    {
+        s = InitScreen(s_w, s_h, title);
+        yellow = SDL_MapRGB(s->format, 0xFF, 0xFF, 0x00);
+        white = SDL_MapRGB(s->format, 0xFF, 0xFF, 0xFF);
+    }
+
+    int i;
     int pCount = 0;
     int max_x = 1;
     int max_y = 1;
@@ -78,24 +109,15 @@ int main(int argc, char *argv[])
 
     /* Initialize array */
     int **p = (int **)initArray(max_x, sizeof(int *));
-    int ow_size = 2, ow_index = 0;
-    int *overwritten = (int *)initArray(ow_size, sizeof(int));
-
-    int i;
     for (i = 0; i < max_x; ++i)
     {
         p[i] = (int *)initArray(max_y, sizeof(int));
     }
+    printf("Initialized 2D array\n");
 
-    SDL_Surface *s = NULL, *sP = NULL;
-    const char *title = "Prime Path";
-    int s_w = 160, s_h = 120, scale = 4;
-    s_w *= scale; s_h *= scale;
-    int s_x = s_w / 2, s_y = s_h / 2;
-    if (InitSDL())
-    {
-        s = InitScreen(s_w, s_h, title);
-    }
+    int ow_size = 2, ow_index = 0;
+    int *overwritten = (int *)initArray(ow_size, sizeof(int));
+
     while (n <= end)
     {
         if (0 != p[x][y])
@@ -111,7 +133,14 @@ int main(int argc, char *argv[])
         p[x][y] = n;
         if (s && s_x >= 0 && s_x < s_w && s_y >= 0 && s_y < s_h)
         {
-            printPoint(s, s_x, s_y);
+            if (overwritten[ow_index - 1] == n)
+            {
+                printPoint(s, s_x, s_y, yellow);
+            }
+            else
+            {
+                printPoint(s, s_x, s_y, white);
+            }
         }
         if (isPrime(n))
         {
@@ -176,26 +205,32 @@ int main(int argc, char *argv[])
 */
     deleteArray(p, max_x);
 
-    const char *fileExt = ".bmp";
     char *widthS = intToStr(s_w), *heightS = intToStr(s_h);
+    char *dimS = catStrs(widthS, "x", heightS);
+    free(widthS); free(heightS);
     char *startS = intToStr(start), *endS = intToStr(end);
-    int bmpNameLen = strlen(widthS) + 1 + strlen(heightS) + 1 +
-                strlen(startS) + 1 + strlen(endS) + strlen(fileExt);
-    char bmpName[bmpNameLen+1];
-    strcpy(strcpy(strcpy(strcpy(strcpy(strcpy(strcpy(strcpy(bmpName, widthS) + strlen(widthS),"x") + 1, heightS) + strlen(heightS), "_") + 1, startS) + strlen(startS), "-") + 1, endS) + strlen(endS), fileExt);
-    bmpName[bmpNameLen] = '\0';
+    char *rangeS = catStrs(startS, "-", endS);
+    free(startS); free(endS);
+    char *fileName = catStrs(dimS, "_", rangeS);
+    free(dimS); free(rangeS);
+    const char *fileExt = "bmp";
+    char *bmpName = catStrs(fileName, ".", fileExt);
+    free(fileName);
     if (0 == SDL_SaveBMP(s, bmpName))
     {
         printf("Saved screen to %s\n", bmpName);
     }
+    free(bmpName);
+
     delay(1000);
     FreeScreen(s);
     QuitSDL();
-    printf("Quit SDL\n");
+    printf("Quitted SDL\n");
 
-    if (5 == argc)
+    if (7 == argc)
     {
-        writePrimes((const int *)primes, pCount, argv[4]);
+        writePrimes((const int *)primes, pCount, argv[6]);
+        printf("Wrote %d primes to '%s'\n", pCount, argv[6]);
     }
 
     return 0;
@@ -414,8 +449,19 @@ int isPrime(int x)
 char* intToStr(int x)
 {
     char *str = (char *)malloc(sizeof(char)*(numDigits(x)+1));
+    assert(str);
     sprintf(str, "%d", x);
     return str;
+}
+
+char* catStrs(const char *a, const char *b, const char *c)
+{
+    assert(a && b && c);
+    int aLen = strlen(a), bLen = strlen(b), cLen = strlen(c);
+    int destLen = aLen + bLen + cLen + 1;
+    char *dest = (char *)malloc(sizeof(char) * destLen);
+    strcpy(strcpy(strcpy(dest, a) + aLen, b) + bLen, c);
+    return dest;
 }
 
 int numDigits(int x)
